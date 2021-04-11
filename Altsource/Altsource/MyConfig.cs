@@ -7,6 +7,7 @@ namespace Altsource
     public class MyConfig
     {
         public string ApplicationName { get; set; }
-        public int Version { get; set; }
+        public string Version { get; set; }
+        public string Headless { get; set; }
     }
 }
