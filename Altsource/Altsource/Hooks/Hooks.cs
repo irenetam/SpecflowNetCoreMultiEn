@@ -2,9 +2,6 @@
 using AventStack.ExtentReports.Gherkin.Model;
 using AventStack.ExtentReports.Reporter;
 using BoDi;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Options;
-using Newtonsoft.Json.Linq;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
@@ -12,7 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using System.Text;
+using System.Reflection;
 using TechTalk.SpecFlow;
 
 namespace Altsource.Hooks
@@ -25,7 +22,6 @@ namespace Altsource.Hooks
         private readonly ScenarioContext _scenarioContext;
         private IWebDriver _driver;
         private WebDriverWait _wait;
-        private readonly IConfiguration _configuration;
 
         private static AventStack.ExtentReports.ExtentReports report;
         private static ExtentTest featureName;
@@ -34,33 +30,17 @@ namespace Altsource.Hooks
         public static string reportPath;
         public static string attachmentPath;
 
-        public Hooks(IObjectContainer objectContainer, FeatureContext featureContext, ScenarioContext scenarioContext, IConfiguration configuration)
+        public Hooks(IObjectContainer objectContainer, FeatureContext featureContext, ScenarioContext scenarioContext)
         {
             _objectContainer = objectContainer;
             _featureContext = featureContext;
             _scenarioContext = scenarioContext;
-            _configuration = configuration;
         }
-        private static IConfiguration config;
+
         [BeforeTestRun]
         public static void InitializeReport()
         {
-            if (config == null)
-            {
-                var appSettings = JObject.Parse(File.ReadAllText(Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json")));
-                var environmentName = appSettings["Environment"].ToString();
-                config = new ConfigurationBuilder()
-                    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                    .AddJsonFile($"appsettings.{environmentName}.json", true)
-                    .Build();
-                var myconfig = new MyConfig();
-                config
-                .GetSection("MyConfig")
-                .Bind(myconfig);
-            
-            }
-
-            if (GetValueFromConfig("reportPath") != "")
+            if (!string.IsNullOrEmpty(GetValueFromConfig("reportPath")))
             {
                 reportPath = GetValueFromConfig("reportPath");
             }
@@ -81,7 +61,7 @@ namespace Altsource.Hooks
         public static void PrintReport()
         {
             report.Flush();
-            //SendReportEmail(attachmentPath);
+            SendReportEmail(attachmentPath);
         }
 
         [Before]
@@ -99,7 +79,10 @@ namespace Altsource.Hooks
             ChromeOptions option = new ChromeOptions();
             option.PageLoadStrategy = PageLoadStrategy.Normal;
 
-            headless = (GetValueFromConfig("headless") != "") ? bool.Parse(GetValueFromConfig("headless")) : true;
+            //headless = (GetValueFromConfig("headless") != "") ? bool.Parse(GetValueFromConfig("headless")) : true;
+            var headlessConfig = GetValueFromAppSettings().Headless;
+            headless = string.IsNullOrEmpty(headlessConfig)? false: Convert.ToBoolean(headlessConfig);
+            var chromeDriverExePath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             if (headless)
             {
                 option.AddArguments("--headless");
@@ -119,14 +102,14 @@ namespace Altsource.Hooks
                 param.Add("behavior", "allow");
                 param.Add("downloadPath", dir);
 
-                ChromeDriver drv = new ChromeDriver(ChromeDriverService.CreateDefaultService(), option, TimeSpan.FromMinutes(3));
+                ChromeDriver drv = new ChromeDriver(ChromeDriverService.CreateDefaultService(chromeDriverExePath), option, TimeSpan.FromMinutes(3));
                 drv.ExecuteChromeCommand("Page.setDownloadBehavior", param);
                 _driver = drv;
 
             }
             else
             {
-                _driver = new ChromeDriver(ChromeDriverService.CreateDefaultService(), option, TimeSpan.FromMinutes(3));
+                _driver = new ChromeDriver(ChromeDriverService.CreateDefaultService(chromeDriverExePath), option, TimeSpan.FromMinutes(3));
             }
 
 
@@ -137,7 +120,7 @@ namespace Altsource.Hooks
 
             _objectContainer.RegisterInstanceAs<IWebDriver>(_driver);
             _objectContainer.RegisterInstanceAs<WebDriverWait>(_wait);
-            _objectContainer.RegisterInstanceAs<IConfiguration>(config);
+            //_objectContainer.RegisterInstanceAs<IConfiguration>(config);
         }
 
         [AfterScenario]

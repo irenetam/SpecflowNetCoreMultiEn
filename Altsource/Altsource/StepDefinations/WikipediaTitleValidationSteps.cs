@@ -22,7 +22,7 @@ namespace Altsource.StepDefinations
         [Then(@"the title of the page should be ""(.*)""")]
         public void ThenTheTitleOfThePageShouldBe(string title)
         {
-            Assert.AreEqual(title, driver.Title);
+            Assert.AreEqual("abc", driver.Title);
         }
     }
 }

@@ -1,11 +1,11 @@
-﻿using NUnit.Framework;
+﻿using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json.Linq;
+using NUnit.Framework;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Support.UI;
 using System;
-using System.Collections.Generic;
 using System.Configuration;
-using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
@@ -31,11 +31,11 @@ namespace Altsource.Hooks
         public static string zipcode;
         public static string sim;
         public Table featureTable;
-        public static string host = GetValueFromConfig("SMTPHost");
-        public static string port = GetValueFromConfig("SMTPPort");
-        public static string fromemail = GetValueFromConfig("ReportEmail");
-        public static string emailpassword = GetValueFromConfig("ReportEmailPassword");
-        public static string toemail = GetValueFromConfig("RecipientsEmail");
+        public static string host = GetValueFromAppSettings().SMTPHost; // GetValueFromConfig("SMTPHost");
+        public static string port = GetValueFromAppSettings().SMTPPort; // GetValueFromConfig("SMTPPort");
+        public static string fromemail = GetValueFromAppSettings().ReportEmail;// GetValueFromConfig("ReportEmail");
+        public static string emailpassword = GetValueFromAppSettings().ReportEmailPassword; //GetValueFromConfig("ReportEmailPassword");
+        public static string toemail = GetValueFromAppSettings().RecipientsEmail; //GetValueFromConfig("RecipientsEmail");
 
 
         /// <summary>Determines whether element present.</summary>
@@ -886,6 +886,28 @@ namespace Altsource.Hooks
         {
             var pos = input.IndexOf('.');
             return (input.Contains(".")) ? input.Substring(0, pos) : input;
+        }
+
+        private static IConfiguration config;
+        private static IConfiguration GetConfig()
+        {
+            var appSettings = JObject.Parse(File.ReadAllText(Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json")));
+            var environmentName = appSettings["Environment"].ToString();
+            config = new ConfigurationBuilder()
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .AddJsonFile($"appsettings.{environmentName}.json", true)
+                .Build();
+            return config;
+        }
+        public static AppSetting GetValueFromAppSettings()
+        {
+            var appSetting = new AppSetting();
+            if (config == null)
+            {
+                config = GetConfig();
+            }
+            config.GetSection("AppSetting").Bind(appSetting);
+            return appSetting;
         }
     }
 }
